@@ -21,20 +21,24 @@ jobs:
 
           # ---------------------------------------------------------------
           # Add one line per site: "Name|SupabaseURL|AnonKey|TableToQuery"
-          # The anon key is safe to keep here in plain text — it's the same
+          # The anon key is safe to keep here in plain text - it's the same
           # public key already shipped in each site's own index.html,
           # protected by RLS, not a secret credential.
           # ---------------------------------------------------------------
           SITES='
-          BuyAndSellCar|https://tpkayzzhqetqdqeaneol.supabase.co|sb_publishable_eoAhg6S6dA2zJg_l_tjkVA_6nxsPDKV|cars
+          BuyAndSellCar|https://tpkayzzhqetqdqeaneol.supabase.co|sb_publishable_eoAhg6S6dA2zJg_l_tjkVA_6nxsPDKV|profiles
+          BuyAndSellVan|https://fsrkmtdauphebmjbxjoc.supabase.co|sb_publishable_f1Ma40H0dHsRb7qrg84uDA_sSGVAS5d|profiles
+          BuyAndSellBike|https://pkufduorydtnirzmvbqe.supabase.co|sb_publishable_GIu3684qV5_wrVtE9bbp-g_3aAF2TII|profiles
+          BuyAndSellPhone|https://juaugnyuehijpstwzoro.supabase.co|sb_publishable_spVdnUPkoT0-j7qA64Wtqg_WalSYtAQ|profiles
+          BuyAndSellClothes|https://ddvactrvjeyqzyjgaohc.supabase.co|sb_publishable_XjIn0k9k2Fm4sf4iLmg8aQ_iIXHOXaN|profiles
+          BuyAndSellHome|https://anlbttnezrceomszghia.supabase.co|eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFubGJ0dG5lenJjZW9tc3pnaGlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1MzYwNjAsImV4cCI6MjA5NTExMjA2MH0.VvteFmm1CTY4QnBOaCwOq4GyY_0h67PASXX4inFUC74|profiles
+          VegePlanet|https://gkogfhvkrnxxbjcjlmcw.supabase.co|sb_publishable_x3FGsRu5wiCHrFWuGp69mw_WbOto8Jr|profiles
+          OKMAM|https://jbjqfkrftgmvftyadfbl.supabase.co|sb_publishable_84XxzpHp2iOzrtIMgMhy5w_CWJdJu2O|profiles
+          TrustedPeople|https://zxvumeacyllrtacwlhnb.supabase.co|sb_publishable_8lNzrlmY4JOSuXmbOu7oGQ|profiles
+          TrustedBuilder|https://jtmjubxmuwxfktetjltu.supabase.co|sb_publishable_GuhGjOqVz2TyUUhexDtUfQ_y4G2hKKh|profiles
+          LocalMenu|https://jfoxmauduqxflshznqvo.supabase.co|sb_publishable_v0Xv_2KelLAAyW482fQ9hg_kx7ZoFpG|profiles
+          AirportDeals|https://szhwkgjddmtaxzaagoxj.supabase.co|sb_publishable_M_t8h3j7ifVdGl09RjqVZw_8Mut0pay|profiles
           '
-          # Add more sites like this as you build them, e.g.:
-          # BuyAndSellVan|https://xxxx.supabase.co|sb_publishable_xxxx|vans
-          # BuyAndSellPhone|https://xxxx.supabase.co|sb_publishable_xxxx|phones
-          # BuyAndSellBike|https://xxxx.supabase.co|sb_publishable_xxxx|bikes
-          # BuyAndSellClothes|https://xxxx.supabase.co|sb_publishable_xxxx|clothes
-          # BuyAndSellHome|https://xxxx.supabase.co|sb_publishable_xxxx|properties
-          # AirportDeals|https://xxxx.supabase.co|sb_publishable_xxxx|deals
 
           FAILED=0
           echo "$SITES" | while IFS='|' read -r NAME URL KEY TABLE; do
@@ -45,9 +49,9 @@ jobs:
               -H "apikey: ${KEY}" \
               -H "Authorization: Bearer ${KEY}")
             if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
-              echo "  ✓ $NAME OK ($STATUS)"
+              echo "  OK: $NAME ($STATUS)"
             else
-              echo "  ✗ $NAME FAILED ($STATUS) — response:"
+              echo "  FAILED: $NAME ($STATUS) - response:"
               cat /tmp/resp.json
               FAILED=1
             fi
