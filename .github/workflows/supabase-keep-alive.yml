@@ -1,0 +1,56 @@
+name: Keep Supabase projects alive
+
+# Pings every project's REST API with one lightweight, real SELECT query so
+# none of them cross Supabase's 7-day inactivity threshold. Runs every 3
+# days for a comfortable safety margin. Costs nothing: this step takes a
+# few seconds and GitHub Actions' free tier gives 2,000 min/month on
+# private repos (unlimited on public repos).
+
+on:
+  schedule:
+    - cron: '0 6 */3 * *'   # every 3 days at 06:00 UTC
+  workflow_dispatch:         # lets you trigger it manually to test
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping each Supabase project
+        run: |
+          set -e
+
+          # ---------------------------------------------------------------
+          # Add one line per site: "Name|SupabaseURL|AnonKey|TableToQuery"
+          # The anon key is safe to keep here in plain text — it's the same
+          # public key already shipped in each site's own index.html,
+          # protected by RLS, not a secret credential.
+          # ---------------------------------------------------------------
+          SITES='
+          BuyAndSellCar|https://tpkayzzhqetqdqeaneol.supabase.co|sb_publishable_eoAhg6S6dA2zJg_l_tjkVA_6nxsPDKV|cars
+          '
+          # Add more sites like this as you build them, e.g.:
+          # BuyAndSellVan|https://xxxx.supabase.co|sb_publishable_xxxx|vans
+          # BuyAndSellPhone|https://xxxx.supabase.co|sb_publishable_xxxx|phones
+          # BuyAndSellBike|https://xxxx.supabase.co|sb_publishable_xxxx|bikes
+          # BuyAndSellClothes|https://xxxx.supabase.co|sb_publishable_xxxx|clothes
+          # BuyAndSellHome|https://xxxx.supabase.co|sb_publishable_xxxx|properties
+          # AirportDeals|https://xxxx.supabase.co|sb_publishable_xxxx|deals
+
+          FAILED=0
+          echo "$SITES" | while IFS='|' read -r NAME URL KEY TABLE; do
+            [ -z "$NAME" ] && continue
+            echo "Pinging $NAME..."
+            STATUS=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
+              "${URL}/rest/v1/${TABLE}?select=id&limit=1" \
+              -H "apikey: ${KEY}" \
+              -H "Authorization: Bearer ${KEY}")
+            if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
+              echo "  ✓ $NAME OK ($STATUS)"
+            else
+              echo "  ✗ $NAME FAILED ($STATUS) — response:"
+              cat /tmp/resp.json
+              FAILED=1
+            fi
+          done
+
+          exit $FAILED
