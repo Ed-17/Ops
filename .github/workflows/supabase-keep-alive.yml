@@ -37,7 +37,7 @@ jobs:
           TrustedPeople|https://zxvumeacyllrtacwlhnb.supabase.co|sb_publishable_8lNzrlmY4JOSuXmbOu7oGQ|profiles
           TrustedBuilder|https://jtmjubxmuwxfktetjltu.supabase.co|sb_publishable_GuhGjOqVz2TyUUhexDtUfQ_y4G2hKKh|profiles
           LocalMenu|https://jfoxmauduqxflshznqvo.supabase.co|sb_publishable_v0Xv_2KelLAAyW482fQ9hg_kx7ZoFpG|profiles
-          AirportDeals|https://szhwkgjddmtaxzaagoxj.supabase.co|sb_publishable_M_t8h3j7ifVdGl09RjqVZw_8Mut0pay|profiles
+          AirportDeals|https://szhwkgjddmtaxzaagoxj.supabase.co|sb_publishable_M_t8h3j7ifVdGl09RjqVZw_8Mut0pay|deals
           '
 
           FAILED=0
