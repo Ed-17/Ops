@@ -1,15 +1,15 @@
 name: Keep Supabase projects alive
 
 # Pings every project's REST API with one lightweight, real SELECT query so
-# none of them cross Supabase's 7-day inactivity threshold. Runs every 3
-# days for a comfortable safety margin. Costs nothing: this step takes a
-# few seconds and GitHub Actions' free tier gives 2,000 min/month on
-# private repos (unlimited on public repos).
+# none of them cross Supabase's 7-day inactivity threshold. Runs daily,
+# comfortably inside that window with no date-math surprises. Costs
+# nothing: this step takes a few seconds and GitHub Actions' free tier
+# gives 2,000 min/month on private repos (unlimited on public repos).
 
 on:
   schedule:
-    - cron: '0 6 */3 * *'   # every 3 days at 06:00 UTC
-  workflow_dispatch:         # lets you trigger it manually to test
+    - cron: '0 6 * * *'    # every day at 06:00 UTC
+  workflow_dispatch:        # lets you trigger it manually to test
 
 jobs:
   ping:
@@ -17,7 +17,10 @@ jobs:
     steps:
       - name: Ping each Supabase project
         run: |
-          set -e
+          # No `set -e` here on purpose: one site failing to connect must
+          # never stop the script before the other 11 get checked. Every
+          # site always gets pinged and reported, no matter what happens
+          # to the ones before it.
 
           # ---------------------------------------------------------------
           # Add one line per site: "Name|SupabaseURL|AnonKey|TableToQuery"
@@ -34,27 +37,44 @@ jobs:
           BuyAndSellHome|https://anlbttnezrceomszghia.supabase.co|eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFubGJ0dG5lenJjZW9tc3pnaGlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1MzYwNjAsImV4cCI6MjA5NTExMjA2MH0.VvteFmm1CTY4QnBOaCwOq4GyY_0h67PASXX4inFUC74|profiles
           VegePlanet|https://gkogfhvkrnxxbjcjlmcw.supabase.co|sb_publishable_x3FGsRu5wiCHrFWuGp69mw_WbOto8Jr|profiles
           OKMAM|https://jbjqfkrftgmvftyadfbl.supabase.co|sb_publishable_84XxzpHp2iOzrtIMgMhy5w_CWJdJu2O|profiles
-          TrustedPeople|https://zxvumeacyllrtacwlhnb.supabase.co|sb_publishable_8lNzrlmY4JOSuXmbOu7oGQ|profiles
+          TrustedPeople|https://zxvumeacyllrtacwlhnb.supabase.co|sb_publishable_8lNzrlmY4JOSuXmbOu7oGQ_obrJnQjM|profiles
           TrustedBuilder|https://jtmjubxmuwxfktetjltu.supabase.co|sb_publishable_GuhGjOqVz2TyUUhexDtUfQ_y4G2hKKh|profiles
           LocalMenu|https://jfoxmauduqxflshznqvo.supabase.co|sb_publishable_v0Xv_2KelLAAyW482fQ9hg_kx7ZoFpG|profiles
           AirportDeals|https://szhwkgjddmtaxzaagoxj.supabase.co|sb_publishable_M_t8h3j7ifVdGl09RjqVZw_8Mut0pay|deals
           '
 
           FAILED=0
-          echo "$SITES" | while IFS='|' read -r NAME URL KEY TABLE; do
+          # Using process substitution (< <(...)) instead of a pipe (| while)
+          # is deliberate: a `| while` loop runs in a subshell in bash, so
+          # FAILED=1 set inside it would silently vanish and the final
+          # `exit $FAILED` would always report success even on real
+          # failures. Process substitution keeps the loop in the same
+          # shell, so FAILED actually persists.
+          while IFS='|' read -r NAME URL KEY TABLE; do
             [ -z "$NAME" ] && continue
             echo "Pinging $NAME..."
-            STATUS=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
-              "${URL}/rest/v1/${TABLE}?select=id&limit=1" \
-              -H "apikey: ${KEY}" \
-              -H "Authorization: Bearer ${KEY}")
+
+            # curl's own connection/DNS failures (exit code != 0, e.g. a
+            # paused project not resolving at all) must NOT crash the
+            # script — capture them as their own failure case instead.
+            if ! STATUS=$(curl -s -o /tmp/resp.json -w "%{http_code}" \
+                --connect-timeout 10 --max-time 20 \
+                "${URL}/rest/v1/${TABLE}?select=id&limit=1" \
+                -H "apikey: ${KEY}" \
+                -H "Authorization: Bearer ${KEY}"); then
+              echo "  FAILED: $NAME - could not connect (curl exit $?). Project may be paused, deleted, or the URL is wrong."
+              FAILED=1
+              continue
+            fi
+
             if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
               echo "  OK: $NAME ($STATUS)"
             else
               echo "  FAILED: $NAME ($STATUS) - response:"
               cat /tmp/resp.json
+              echo ""
               FAILED=1
             fi
-          done
+          done < <(printf '%s' "$SITES")
 
           exit $FAILED
