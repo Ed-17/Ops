@@ -5,16 +5,28 @@ name: Keep Supabase projects alive
 # comfortably inside that window with no date-math surprises. Costs
 # nothing: this step takes a few seconds and GitHub Actions' free tier
 # gives 2,000 min/month on private repos (unlimited on public repos).
+#
+# Also commits a small timestamp file to this repo on every run (see the
+# last step below). GitHub silently disables scheduled workflows after 60
+# days with no commits to the repo itself — since this repo likely has no
+# other activity, that self-commit is what keeps GitHub's OWN inactivity
+# clock from ever expiring on this workflow.
 
 on:
   schedule:
     - cron: '0 6 * * *'    # every day at 06:00 UTC
   workflow_dispatch:        # lets you trigger it manually to test
 
+permissions:
+  contents: write   # required so the last step can commit the timestamp file
+
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Ping each Supabase project
         run: |
           # No `set -e` here on purpose: one site failing to connect must
@@ -78,3 +90,17 @@ jobs:
           done < <(printf '%s' "$SITES")
 
           exit $FAILED
+
+      - name: Keep this repo (and this workflow's own schedule) active
+        # Runs even if the ping step above failed — the whole point is that
+        # GitHub's 60-day inactivity clock resets on this commit regardless
+        # of whether every site passed, so a bad day for one Supabase
+        # project can never also silently kill this workflow.
+        if: always()
+        run: |
+          echo "Last ping run: $(date -u +'%Y-%m-%dT%H:%M:%SZ')" > last-run.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add last-run.txt
+          git commit -m "chore: keep-alive ping $(date -u +%Y-%m-%d)" || echo "Nothing to commit"
+          git push || echo "Nothing to push"
